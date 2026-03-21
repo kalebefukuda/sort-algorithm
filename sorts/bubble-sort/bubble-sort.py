@@ -12,4 +12,4 @@ def bubbleSort(arr):
                 arr[j + 1] = aux
     return arr
 
-print(buble(arr))
+print(bubbleSort(arr))
