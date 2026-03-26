@@ -1,5 +1,3 @@
-arr = [10,8,7,6,5,4,3,2,1]
-
 def mergeSort(arr):
     newArr = []
     mid = len(arr) // 2
