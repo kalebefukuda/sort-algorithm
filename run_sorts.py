@@ -18,12 +18,15 @@ BASE       = os.path.dirname(os.path.abspath(__file__))
 
 bubble = load_module("bubble_sort", os.path.join(BASE, "sorts", "bubble_sort", "bubble_sort.py"))
 merge  = load_module("merge_sort",  os.path.join(BASE, "sorts", "merge_sort",  "merge_sort.py"))
+insert = load_module("insert_sort", os.path.join(BASE, "sorts", "insert_sort", "insert_sort.py"))
 
 arr = load_array(ARRAY_FILE)
 
 result_bubble = bubble.bubbleSort(arr.copy())
 result_merge  = merge.mergeSort(arr.copy())
+result_insert = insert.insertSort(arr.copy())
 
 print(f"Array original ({len(arr)} elementos): {arr[:5]}...")
 print(f"Bubble Sort:   {result_bubble[:5]}...")
 print(f"Merge Sort:    {result_merge[:5]}...")
+print(f"Insert Sort:   {result_insert[:5]}...")
