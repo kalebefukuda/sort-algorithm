@@ -10,7 +10,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-from prometheus_client import Histogram, start_http_server
+from prometheus_client import Histogram, Counter, start_http_server
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +30,18 @@ tracer = trace.get_tracer("sort-algorithm")
 execution_time = Histogram(
     "sort_execution_time_seconds",
     "Tempo de execução em segundos",
+    labelnames=["algorithm", "input_size"]
+)
+
+comparacoes_counter = Counter(
+    "sort_comparacoes_total",
+    "Total de comparações realizadas",
+    labelnames=["algorithm", "input_size"]
+)
+
+trocas_counter = Counter(
+    "sort_trocas_total",
+    "Total de trocas realizadas",
     labelnames=["algorithm", "input_size"]
 )
 
@@ -62,14 +74,19 @@ def run_sort(name: str, fn, arr: list[int]):
 
         try:
             start = time.perf_counter()
-            result = fn(arr.copy())
+            result, comparacoes, trocas = fn(arr.copy())
             elapsed = time.perf_counter() - start
 
             span.set_attribute("execution_time_s", elapsed)
-            execution_time.labels(algorithm=name, input_size=str(len(arr))).observe(elapsed)
+            span.set_attribute("comparacoes", comparacoes)
+            span.set_attribute("trocas", trocas)
 
-            logger.info(f"Finalizado {name} | {len(arr)} elementos | {elapsed:.6f}s")
-            print(f"  [{name}] {len(arr)} elementos → {elapsed:.6f}s")
+            execution_time.labels(algorithm=name, input_size=str(len(arr))).observe(elapsed)
+            comparacoes_counter.labels(algorithm=name, input_size=str(len(arr))).inc(comparacoes)
+            trocas_counter.labels(algorithm=name, input_size=str(len(arr))).inc(trocas)
+
+            logger.info(f"Finalizado {name} | {len(arr)} elementos | {elapsed:.6f}s | comparações: {comparacoes} | trocas: {trocas}")
+            print(f"  [{name}] {len(arr)} elementos → {elapsed:.6f}s | comparações: {comparacoes} | trocas: {trocas}")
             return result
 
         except Exception as e:
