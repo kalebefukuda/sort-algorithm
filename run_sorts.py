@@ -3,31 +3,38 @@ import importlib.util
 import os
 import time
 import glob
+import logging
 
-from opentelemetry import trace, metrics
+from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, BatchSpanProcessor
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-# setup OpenTelemetry
+from prometheus_client import Histogram, start_http_server
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+logger = logging.getLogger("sort-algorithm")
+
+OTEL_ENDPOINT = "http://localhost:4318"
+
 tracer_provider = TracerProvider()
-tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+tracer_provider.add_span_processor(
+    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces"))
+)
 trace.set_tracer_provider(tracer_provider)
 tracer = trace.get_tracer("sort-algorithm")
 
-reader = PeriodicExportingMetricReader(ConsoleMetricExporter(), export_interval_millis=1000)
-meter_provider = MeterProvider(metric_readers=[reader])
-metrics.set_meter_provider(meter_provider)
-meter = metrics.get_meter("sort-algorithm")
-
-execution_time = meter.create_histogram(
-    name="sort.execution_time",
-    description="Tempo de execução em segundos",
-    unit="s",
+execution_time = Histogram(
+    "sort_execution_time_seconds",
+    "Tempo de execução em segundos",
+    labelnames=["algorithm", "input_size"]
 )
 
-# helpers
+start_http_server(8000)
+
 def load_module(name: str, filepath: str):
     spec = importlib.util.spec_from_file_location(name, filepath)
     mod  = importlib.util.module_from_spec(spec)
@@ -48,33 +55,42 @@ def load_all_arrays(folder: str) -> list[tuple[int, list[int]]]:
     return arrays
 
 def run_sort(name: str, fn, arr: list[int]):
+    logger.info(f"Iniciando {name} com {len(arr)} elementos")
     with tracer.start_as_current_span(name) as span:
         span.set_attribute("algorithm", name)
         span.set_attribute("input.size", len(arr))
 
-        start = time.perf_counter()
-        result = fn(arr.copy())
-        elapsed = time.perf_counter() - start
+        try:
+            start = time.perf_counter()
+            result = fn(arr.copy())
+            elapsed = time.perf_counter() - start
 
-        span.set_attribute("execution_time_s", elapsed)
-        execution_time.record(elapsed, attributes={"algorithm": name})
+            span.set_attribute("execution_time_s", elapsed)
+            execution_time.labels(algorithm=name, input_size=str(len(arr))).observe(elapsed)
 
-        print(f"  [{name}] {len(arr)} elementos → {elapsed:.6f}s")
-        return result
+            logger.info(f"Finalizado {name} | {len(arr)} elementos | {elapsed:.6f}s")
+            print(f"  [{name}] {len(arr)} elementos → {elapsed:.6f}s")
+            return result
 
-# carrega algoritmos
+        except Exception as e:
+            logger.error(f"Erro ao executar {name}: {e}")
+            span.set_attribute("error", str(e))
+            raise
+
 BASE   = os.path.dirname(os.path.abspath(__file__))
 bubble = load_module("bubble_sort", os.path.join(BASE, "sorts", "bubble_sort", "bubble_sort.py"))
-merge  = load_module("merge_sort",  os.path.join(BASE, "sorts", "merge_sort",  "merge_sort.py"))
 insert = load_module("insert_sort", os.path.join(BASE, "sorts", "insert_sort", "insert_sort.py"))
+merge  = load_module("merge_sort",  os.path.join(BASE, "sorts", "merge_sort",  "merge_sort.py"))
 
-# execução para todos os arrays da pasta
 arrays = load_all_arrays(os.path.join(BASE, "data_arrays"))
 
 for size, arr in arrays:
     print(f"\n── Array {size} elementos ──")
     run_sort("bubble_sort", bubble.bubbleSort, arr)
-    run_sort("merge_sort",  merge.mergeSort,   arr)
     run_sort("insert_sort", insert.insertSort, arr)
+    run_sort("merge_sort",  merge.mergeSort,   arr)
 
-time.sleep(2)
+print("\nMétricas em http://localhost:8000")
+
+while True:
+    time.sleep(5)
