@@ -2,6 +2,7 @@ import csv
 import importlib.util
 import os
 import time
+import glob
 
 from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider
@@ -38,6 +39,14 @@ def load_array(filepath: str) -> list[int]:
         reader = csv.reader(f)
         return [int(x) for x in next(reader)]
 
+def load_all_arrays(folder: str) -> list[tuple[int, list[int]]]:
+    files = sorted(glob.glob(os.path.join(folder, "array_*.csv")))
+    arrays = []
+    for f in files:
+        size = int(os.path.basename(f).replace("array_", "").replace(".csv", ""))
+        arrays.append((size, load_array(f)))
+    return arrays
+
 def run_sort(name: str, fn, arr: list[int]):
     with tracer.start_as_current_span(name) as span:
         span.set_attribute("algorithm", name)
@@ -50,23 +59,22 @@ def run_sort(name: str, fn, arr: list[int]):
         span.set_attribute("execution_time_s", elapsed)
         execution_time.record(elapsed, attributes={"algorithm": name})
 
-        print(f"[{name}] {len(arr)} elementos → {elapsed:.6f}s")
+        print(f"  [{name}] {len(arr)} elementos → {elapsed:.6f}s")
         return result
 
-# configuração
-ARRAY_FILE = "data_arrays/array_1000.csv"
-BASE       = os.path.dirname(os.path.abspath(__file__))
-
 # carrega algoritmos
+BASE   = os.path.dirname(os.path.abspath(__file__))
 bubble = load_module("bubble_sort", os.path.join(BASE, "sorts", "bubble_sort", "bubble_sort.py"))
 merge  = load_module("merge_sort",  os.path.join(BASE, "sorts", "merge_sort",  "merge_sort.py"))
 insert = load_module("insert_sort", os.path.join(BASE, "sorts", "insert_sort", "insert_sort.py"))
 
-# execução
-arr = load_array(ARRAY_FILE)
+# execução para todos os arrays da pasta
+arrays = load_all_arrays(os.path.join(BASE, "data_arrays"))
 
-run_sort("bubble_sort", bubble.bubbleSort, arr)
-run_sort("merge_sort",  merge.mergeSort,   arr)
-run_sort("insert_sort", insert.insertSort, arr)
+for size, arr in arrays:
+    print(f"\n── Array {size} elementos ──")
+    run_sort("bubble_sort", bubble.bubbleSort, arr)
+    run_sort("merge_sort",  merge.mergeSort,   arr)
+    run_sort("insert_sort", insert.insertSort, arr)
 
 time.sleep(2)
