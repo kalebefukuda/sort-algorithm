@@ -1,4 +1,5 @@
 # Relatório Técnico — N1
+
 ## Implementação, Instrumentação e Análise de Algoritmos de Ordenação
 
 **Aluno:** Kalebe Fukuda de Oliveira
@@ -46,11 +47,13 @@ Divide o array ao meio recursivamente até restar elementos individuais, depois 
 Os arrays foram gerados uma única vez com o script `generator_array_csv.py`, salvos em arquivos CSV na pasta `data_arrays/`, e reutilizados por todos os algoritmos em cada execução.
 
 | Arquivo | Tamanho |
-|---|---|
+| --- | --- |
 | array_1000.csv | 1.000 elementos |
 | array_5000.csv | 5.000 elementos |
 | array_10000.csv | 10.000 elementos |
 | array_50000.csv | 50.000 elementos |
+
+Usar os mesmos arrays para todos os algoritmos é essencial para garantir validade experimental: se cada algoritmo recebesse dados diferentes, qualquer diferença de tempo poderia ser explicada pela distribuição dos dados, não pela complexidade do algoritmo.
 
 ---
 
@@ -64,7 +67,7 @@ A instrumentação foi feita no arquivo `run_sorts.py` utilizando:
 ### Métricas coletadas
 
 | Métrica | Descrição |
-|---|---|
+| --- | --- |
 | `sort_execution_time_seconds` | Tempo de execução em segundos |
 | `sort_comparacoes_total` | Número de comparações realizadas |
 | `sort_trocas_total` | Número de trocas realizadas |
@@ -75,7 +78,7 @@ A instrumentação foi feita no arquivo `run_sorts.py` utilizando:
 - Fim da execução com tempo, comparações e trocas
 - Erros e exceções com stack trace
 
-![Log de execução](images/logs/log_code.png)
+[![Log de execução](images/logs/log_code.png)](images/logs/log_code.png)
 
 ### Atributos dos spans
 
@@ -88,11 +91,13 @@ Cada span registra: `algorithm`, `input.size`, `execution_time_s`, `comparacoes`
 ### Escolha: Grafana + Prometheus
 
 **Por que Grafana?**
+
 - Integração nativa com Prometheus
 - Interface visual intuitiva para criação de dashboards
 - Amplamente utilizado em ambientes profissionais de engenharia de software
 
 **Por que Prometheus?**
+
 - Coleta métricas via scrape HTTP — compatível com o `prometheus_client` do Python
 - Modelo de dados orientado a séries temporais com suporte a labels, permitindo filtrar por algoritmo e tamanho de array
 
@@ -113,52 +118,61 @@ Todos os algoritmos foram executados sobre os mesmos arrays, nos mesmos tamanhos
 ### 6.1 Array 1.000 elementos
 
 | Algoritmo | Tempo | Comparações | Trocas |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Bubble Sort | 0,0639s | 499.500 | 248.325 |
 | Insert Sort | 0,0310s | 249.322 | 248.325 |
 | Merge Sort | 0,00309s | 8.697 | 8.697 |
 
-![Métricas Array 1000](images/grafana/array_1000.png)
+[![Métricas Array 1000](images/grafana/array_1000.png)](images/grafana/array_1000.png)
 
 ---
 
 ### 6.2 Array 5.000 elementos
 
 | Algoritmo | Tempo | Comparações | Trocas |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Bubble Sort | 1,67s | 12.497.500 | 6.127.590 |
 | Insert Sort | 0,813s | 6.132.574 | 6.127.590 |
 | Merge Sort | 0,0170s | 55.257 | 55.257 |
 
-![Métricas Array 5000](images/grafana/array_5000.png)
+[![Métricas Array 5000](images/grafana/array_5000.png)](images/grafana/array_5000.png)
 
 ---
 
 ### 6.3 Array 10.000 elementos
 
 | Algoritmo | Tempo | Comparações | Trocas |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Bubble Sort | 6,59s | 49.995.000 | 25.094.401 |
 | Insert Sort | 3,34s | 25.104.391 | 25.094.401 |
 | Merge Sort | 0,0410s | 120.524 | 120.524 |
 
-![Métricas Array 10000](images/grafana/array_10000.png)
+[![Métricas Array 10000](images/grafana/array_10000.png)](images/grafana/array_10000.png)
 
 ---
 
 ### 6.4 Array 50.000 elementos
 
 | Algoritmo | Tempo | Comparações | Trocas |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Bubble Sort | 174s | 1.249.975.000 | 623.403.427 |
 | Insert Sort | 83,1s | 623.453.416 | 623.403.427 |
 | Merge Sort | 0,321s | 718.394 | 718.394 |
 
-![Métricas Array 50000](images/grafana/array_50000.png)
+[![Métricas Array 50000](images/grafana/array_50000.png)](images/grafana/array_50000.png)
 
 ---
 
 ## 7. Análise Crítica
+
+**Tabela Comparativa — Tempo de Execução por Algoritmo (segundos)**
+
+| N | Bubble Sort | Insertion Sort | Merge Sort |
+| --- | --- | --- | --- |
+| 1.000 | 0,0639s | 0,0310s | 0,00309s |
+| 5.000 | 1,67s | 0,813s | 0,0170s |
+| 10.000 | 6,59s | 3,34s | 0,0410s |
+| 50.000 | 174s | 83,1s | 0,321s |
 
 ### Os resultados confirmaram a teoria?
 
@@ -195,6 +209,7 @@ Também não seria visível que o Merge Sort, apesar de muito mais rápido, faz 
 A IA (Claude) foi utilizada como ferramenta de apoio ao longo de todo o projeto.
 
 **Onde ajudou:**
+
 - Configuração da stack Docker com Grafana, Prometheus e OTel Collector
 - Implementação da instrumentação com `prometheus_client` após falhas no exporter OTLP
 - Adição dos contadores de comparações e trocas nos algoritmos
@@ -203,27 +218,29 @@ A IA (Claude) foi utilizada como ferramenta de apoio ao longo de todo o projeto.
 - Entender todas as tecnologias usadas, pois não havia nunca usado antes
 
 **Onde foi necessário corrigir ou decidir sozinho:**
+
 - A IA sugeriu inicialmente o `OTLPMetricExporter` para enviar métricas, mas ele não funcionou no ambiente Windows com Docker — foi necessário trocar para o `prometheus_client` com endpoint HTTP direto
 - A estrutura de pastas (`sorts/bubble_sort/bubble_sort.py`) foi uma decisão própria, não sugerida pela IA
 - A escolha de quais métricas eram relevantes para o relatório partiu da leitura crítica dos dados, não da IA
 - O Códigos de Sorts foi implementação própria
 
 **Onde a IA foi superficial:**
+
 - Na configuração de ambientes, tive problemas, pois estava com erro no OTL e as métricas não estavam sendo obtidas para o dashboard no Grafana
 
 ### Evidências de uso da IA
 
 **Configuração do Grafana**
 
-![Uso da IA - Configuração do Grafana](images/uso_ia/config_grafana.png)
+[![Uso da IA - Configuração do Grafana](images/uso_ia/config_grafana.png)](images/uso_ia/config_grafana.png)
 
 **Instrumentação com OpenTelemetry**
 
-![Uso da IA - Telemetria](images/uso_ia/ex_telemetry.png)
+[![Uso da IA - Telemetria](images/uso_ia/ex_telemetry.png)](images/uso_ia/ex_telemetry.png)
 
 **Geração de documentação Markdown**
 
-![Uso da IA - Geração de MD](images/uso_ia/geracao_md.png)
+[![Uso da IA - Geração de MD](images/uso_ia/geracao_md.png)](images/uso_ia/geracao_md.png)
 
 ---
 
